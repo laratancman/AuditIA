@@ -12,7 +12,11 @@ router = APIRouter(prefix="/documents", tags=["Chat"])
 async def upload_document(file: UploadFile = File(...)):
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Arquivo deve ser PDF")
-    temp_path = f"/tmp/{uuid.uuid4()}.pdf"
+
+    tmp_dir = "/tmp"
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    temp_path = os.path.join(tmp_dir, f"{uuid.uuid4()}.pdf")
 
     with open(temp_path, "wb") as f:
         f.write(await file.read())

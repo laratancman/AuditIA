@@ -4,9 +4,11 @@ boto3
 pydantic
 pypdf
 langchain
+langchain-community
+langchain-postgres
 langchain-google-genai
 sqlalchemy
-psycopg2-binary
+psycopg[binary]>=3.1
 pgvector
 python-multipart
 python-dotenv

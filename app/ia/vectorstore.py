@@ -1,13 +1,15 @@
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain.schema import Document
 from database import engine, sessionmaker, DATABASE_URL
-from models import google_embedding
+from .models import google_embedding
 # Iniciar o vectorstore
 def init_vectorstore(collection_name="embeddings"):
     return PGVector(
-        connection_string=DATABASE_URL,
+        connection=DATABASE_URL,
         collection_name=collection_name,
-        embedding_function=google_embedding
+        embeddings=google_embedding,
+        use_jsonb=True
+        
     )
 
 def ingest_documents(chunks, metadatas, vectorstore):
