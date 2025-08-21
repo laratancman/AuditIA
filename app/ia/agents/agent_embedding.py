@@ -1,33 +1,25 @@
 # Em app/ia/vectorstore.py
 
 import asyncio
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from ..models import google_embedding
 from langchain_community.vectorstores.pgvector import PGVector
 from langchain_core.documents import Document
 from config import GEMINI_API_KEY
 from database import DATABASE_URL
+from app.ia.utils import chunk_split
 
 COLLECTION_NAME = "auditia_docs"
 
-def get_google_embeddings():
-    """
-    Inicializa e retorna o modelo de embeddings do Google Gemini.
-    """
-    return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001", 
-        google_api_key=GEMINI_API_KEY
-    )
 
 async def _aingest_documents_async(documents: list[Document]):
     """
     Função auxiliar assíncrona que realiza a ingestão de forma nativa.
     """
-    embeddings_model = get_google_embeddings()
 
     # Usamos o método assíncrono 'afrom_documents' do PGVector
     await PGVector.afrom_documents(
         documents=documents,
-        embedding=embeddings_model,
+        embedding=google_embedding,
         collection_name=COLLECTION_NAME,
         connection_string=DATABASE_URL,
     )
@@ -49,13 +41,15 @@ def ingest_documents(documents: list[Document]):
         print(f"Erro durante a ingestão assíncrona de documentos: {e}")
         raise e
 
-def init_vectorstore():
-    """
-    Inicializa uma conexão com um Vector Store existente para fazer buscas.
-    """
-    embeddings_model = get_google_embeddings()
-    return PGVector(
-        collection_name=COLLECTION_NAME,
-        connection_string=DATABASE_URL,
-        embedding_function=embeddings_model
-    )
+def create_embeddings(pdf_text, s3_url):
+
+    text_chunks = chunk_split(pdf_text)
+
+    documents_to_ingest = [
+        Document(page_content=chunk, metadata={"source": s3_url})
+        for chunk in text_chunks
+    ]
+
+    ingest_documents(documents_to_ingest)
+
+    return len(documents_to_ingest)
