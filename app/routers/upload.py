@@ -33,16 +33,16 @@ def upload_document(file: UploadFile = File(...)):
         s3_url = upload_file(temp_path, s3_key)
         
         # Extrair texto e dividir em pedaços
-        pdf_text = read_pdf(file_path=temp_path)
-        if not pdf_text or not pdf_text.strip():
+        pdf_pages = read_pdf(file_path=temp_path)
+        if not pdf_pages:
             raise HTTPException(status_code=400, detail="Não foi possível extrair texto do PDF.")
 
-        chunks_created = create_embeddings(pdf_text, s3_url)
+        create_embeddings(pdf_pages=pdf_pages, file_name=file.filename)
 
         return {
             "filename": file.filename,
             "s3_url": s3_url,
-            "chunks_created": chunks_created,
+            "chunks_created": None,
             "message": "Documento processado e vetorizado com sucesso!"
         }
 

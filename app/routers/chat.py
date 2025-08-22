@@ -22,24 +22,21 @@ class QueryRequest(BaseModel):
 def query_document(request: QueryRequest):
     start_time = time.time()
 
-    try:
-        # Explicitly embed the query using embed_query
 
-        chat_history_db = query_chat_history()
+    # Explicitly embed the query using embed_query
 
-        response = query_embedding(pergunta=request.query, chat_id=request.chat_id, chat_history_db=chat_history_db)
+    chat_history_db = query_chat_history()
 
-        print(f"Resposta: {response['answer']}")
+    response = query_embedding(pergunta=request.query, chat_id=request.chat_id, chat_history_db=chat_history_db)
 
-        chat_history_doc = Document(
+    print(f"Resposta: {response['answer']}")
+
+    chat_history_doc = Document(
             page_content=f"Usuário: {request.query}\nIA: {response['answer']}",
             metadata={"chat_id": request.chat_id, "user": request.query, "ai": response['answer'],
                       "timestamp": datetime.now().isoformat()}
-        )
-        chat_history_db.add_documents([chat_history_doc])
+    )
+    chat_history_db.add_documents([chat_history_doc])
 
-        print(f"Tempo: {time.time() - start_time} segundos")
-        return {"answer": response['answer']}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro: {str(e)}")
+    print(f"Tempo: {time.time() - start_time} segundos")
+    return {"answer": response['answer']}

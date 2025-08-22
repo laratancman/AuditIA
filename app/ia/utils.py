@@ -2,11 +2,13 @@ import os
 
 import boto3
 from botocore.exceptions import ClientError
-from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_REGION, AWS_S3_BUCKET
+from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_REGION, AWS_S3_BUCKET, DATABASE_URL
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from .models import google_embedding
-from langchain_community.vectorstores.pgvector import PGVector
+from langchain_postgres.vectorstores import PGVector
+from langchain_community.document_loaders import PyPDFLoader
+
 
 s3 = boto3.client(
     "s3",
@@ -14,6 +16,16 @@ s3 = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
     region_name=AWS_S3_REGION
 )
+
+pg_vector = PGVector(
+    embeddings=google_embedding,
+    collection_name="auditia_docs",
+    connection=DATABASE_URL,
+    use_jsonb=True
+)
+
+pg_vector.create_tables_if_not_exists()
+
 
 def check_s3(s3):
     try:
@@ -27,9 +39,10 @@ def upload_file(file_path, key):
     return f"https://{AWS_S3_BUCKET}.s3.{AWS_S3_REGION}.amazonaws.com/{key}"
 
 def read_pdf(file_path):
-    reader = PdfReader(file_path)
-    text = "".join(page.extract_text() + "\n" for page in reader.pages)
-    return text
+    loader = PyPDFLoader(file_path)
+    pages = loader.load_and_split()
+    os.remove(file_path)
+    return pages
 
 def chunk_split(text, chunk_size=500, chunk_overlap=50):
     
@@ -44,9 +57,7 @@ def query_embedding(pergunta, chat_id, chat_history_db):
     query_embedding = google_embedding.embed_query(pergunta)
 
     # Perform similarity search using the embedded query
-    results = PGVector(collection_name="auditia_docs",
-                       connection_string=os.getenv("DATABASE_URL"),
-                       embedding_function=google_embedding, use_jsonb=True).similarity_search_with_score_by_vector(embedding=query_embedding, k=10)
+    results = pg_vector.similarity_search_with_score_by_vector(embedding=query_embedding, k=10)
 
     files = [result[0].metadata["file_name"] for result in results]
     pages = [result[0].metadata["page_number"] for result in results]
@@ -70,8 +81,13 @@ def query_embedding(pergunta, chat_id, chat_history_db):
 
 def query_chat_history():
     return PGVector(
-        embedding_function=google_embedding,
+        embeddings=google_embedding,
         collection_name="chat_history",
-        connection_string=os.getenv("DATABASE_URL"),
+        connection=DATABASE_URL,
         use_jsonb=True
     )
+
+def clean_text_data(text):
+    if text is not None:
+        return text.replace('\x00', '').encode('utf-8').decode('utf-8')
+    return text
