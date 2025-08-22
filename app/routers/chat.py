@@ -9,7 +9,7 @@ from app.ia.utils import query_embedding, query_chat_history
 from datetime import datetime
 import time
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 

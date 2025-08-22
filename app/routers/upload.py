@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 from app.ia.agents.agent_embedding import create_embeddings
 from app.ia.utils import upload_file, read_pdf
 
-router = APIRouter(prefix="/documents", tags=["chat"])
+router = APIRouter(prefix="/documents", tags=["Documentos"])
 
 @router.post("/upload")
 def upload_document(file: UploadFile = File(...)):

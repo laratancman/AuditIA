@@ -5,7 +5,7 @@ from botocore.exceptions import ClientError
 from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_REGION, AWS_S3_BUCKET
 from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from models import google_embedding
+from .models import google_embedding
 from langchain_community.vectorstores.pgvector import PGVector
 
 s3 = boto3.client(
@@ -46,7 +46,7 @@ def query_embedding(pergunta, chat_id, chat_history_db):
     # Perform similarity search using the embedded query
     results = PGVector(collection_name="auditia_docs",
                        connection_string=os.getenv("DATABASE_URL"),
-                       embedding_function=google_embedding).similarity_search_with_score_by_vector(embedding=query_embedding, k=10)
+                       embedding_function=google_embedding, use_jsonb=True).similarity_search_with_score_by_vector(embedding=query_embedding, k=10)
 
     files = [result[0].metadata["file_name"] for result in results]
     pages = [result[0].metadata["page_number"] for result in results]
