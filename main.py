@@ -1,11 +1,12 @@
 import uvicorn
 from fastapi import FastAPI
-from app.routers import upload, chat
+from app.routers import upload, chat, risks
 
 app = FastAPI(title="Projeto RAG")
 
 app.include_router(upload.router)
 app.include_router(chat.router)
+app.include_router(risks.router)
 
 
 if __name__ == "__main__":
