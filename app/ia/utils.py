@@ -41,43 +41,17 @@ def upload_file(file_path, key):
 def read_pdf(file_path):
     loader = PyPDFLoader(file_path)
     pages = loader.load_and_split()
-    os.remove(file_path)
+    # A remoção do arquivo foi movida para o bloco 'finally' nos routers para mais segurança
     return pages
 
 def chunk_split(text, chunk_size=500, chunk_overlap=50):
-    
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap
     )
-    
+
     return splitter.split_text(text)
-
-def query_embedding(pergunta, chat_id, chat_history_db):
-    query_embedding = google_embedding.embed_query(pergunta)
-
-    # Perform similarity search using the embedded query
-    results = pg_vector.similarity_search_with_score_by_vector(embedding=query_embedding, k=10)
-
-    files = [result[0].metadata["file_name"] for result in results]
-    pages = [result[0].metadata["page_number"] for result in results]
-    vectors = [result[1] for result in results]
-
-    print(f"Documentos: {files} - Páginas: {pages}")
-    print(f"Vetores das respostas mais próximas: {vectors}")
-    if results:
-        print(f"Documentos próximos: {results[0][0].page_content}")
-
-    context = ""
-    for doc, score in results:
-        context += f"Arquivo: {doc.metadata['file_name']}\nPágina: {doc.metadata['page_number']}\nTexto: {doc.page_content}\n\n"
-
-    history = ""
-    conversation_history = chat_history_db.similarity_search_with_score(
-        query=pergunta, k=3, filter={"chat_id": chat_id}
-    )
-    for history_doc, score in conversation_history:
-        history += f"Usuário: {history_doc.metadata['user']}\nIA: {history_doc.metadata['ai']}\n\n"
 
 def query_chat_history():
     return PGVector(
@@ -91,3 +65,33 @@ def clean_text_data(text):
     if text is not None:
         return text.replace('\x00', '').encode('utf-8').decode('utf-8')
     return text
+
+# --- NOVA FUNÇÃO ADICIONADA ---
+def get_full_text_by_filename(file_name: str) -> str:
+    """
+    Busca todos os chunks de um documento no banco de vetores pelo nome do arquivo,
+    ordena-os e remonta o texto completo.
+    """
+    if not pg_vector:
+        raise ConnectionError("A conexão com o banco de vetores não está disponível.")
+
+    retriever = pg_vector.as_retriever(
+        search_kwargs={
+            'filter': {'file_name': file_name},
+            'k': 1000  # Pega um número grande de chunks para garantir que todos venham
+        }
+    )
+
+    docs_encontrados = retriever.invoke(" ")
+
+    documentos_do_arquivo = [doc for doc in docs_encontrados if doc.metadata.get("file_name") == file_name]
+
+    if not documentos_do_arquivo:
+        return ""
+
+    documentos_ordenados = sorted(documentos_do_arquivo, key=lambda doc: doc.metadata.get('page_number', 0))
+
+    texto_completo = "\n".join([doc.page_content for doc in documentos_ordenados])
+
+    print(f"Texto completo para '{file_name}' reconstruído com sucesso a partir de {len(documentos_ordenados)} chunks.")
+    return texto_completo
