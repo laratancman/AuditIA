@@ -1,45 +1,69 @@
 from langchain.prompts import PromptTemplate
-from ..models import llm_gemini_pro
+from langchain_google_genai import ChatGoogleGenerativeAI
+from ..models import GEMINI_API_KEY
+from google.generativeai.types.safety_types import HarmCategory, HarmBlockThreshold
 
 def gerar_insights_proativos(texto_contrato: str) -> str:
     """
     Analisa o texto de um contrato e gera insights, riscos e dicas de forma proativa.
-
-    :param texto_contrato: O conteúdo textual completo do contrato.
-    :return: Uma análise textual gerada pela IA.
     """
+    print("--- DEBUG: Entrou na função gerar_insights_proativos ---")
 
+    # Instância do LLM com configurações de segurança personalizadas
+    llm_proativo_seguro = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        google_api_key=GEMINI_API_KEY,
+        safety_settings={
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        },
+    )
+
+    # --- PROMPT NOVO E MELHORADO ---
     template = """
-        Você é um advogado especialista sênior, encarregado de revisar um contrato para um cliente. Sua tarefa é ler o texto a seguir e, de forma proativa, criar um resumo com os pontos mais importantes que o cliente precisa saber.
+        Você é um consultor de contratos da AuditIA, um especialista em transformar documentos complexos em insights claros e acionáveis para executivos.
 
-        Seu resumo deve ser claro, objetivo e em formato de tópicos (bullet points).
+        **Objetivo:** Analisar o contrato fornecido e gerar um resumo executivo, elegante e conciso.
 
-        Instruções:
-        1.  **Resumo Executivo:** Comece com um parágrafo curto resumindo o propósito principal do contrato.
-        2.  **Pontos de Atenção Críticos:** Identifique e liste as 3 a 5 cláusulas ou obrigações mais importantes que podem gerar riscos (multas, rescisão, confidencialidade, LGPD, propriedade intelectual). Explique o risco de forma simples.
-        3.  **Prazos e Datas Importantes:** Se houver datas ou prazos mencionados, liste-os claramente.
-        4.  **Dicas de Negociação (Opcional):** Se identificar alguma cláusula que parece desfavorável ou que poderia ser negociada, sugira uma alternativa ou um ponto para discussão.
-        5.  **Linguagem:** Use uma linguagem de negócios, mas evite jargões legais excessivos para que o cliente possa entender.
+        **Formato da Resposta:**
+        - Use Markdown para formatação (**negrito**, tópicos).
+        - Inicie cada seção com um emoji correspondente para clareza visual.
+        - Seja extremamente direto e focado no que é mais importante.
 
-        Aja como um consultor de confiança. Sua análise deve ser direta e útil.
+        **Estrutura Obrigatória:**
 
-        Abaixo está o texto do contrato:
+        📄 **Resumo do Contrato:**
+        Em uma única frase, descreva o propósito principal deste documento.
+
+        ⚠️ **Pontos de Atenção:**
+        Liste no máximo 3 a 4 tópicos essenciais. Para cada tópico, explique o impacto em termos de negócio (risco, custo, obrigação) de forma breve.
+        - **[Tópico 1]:** Breve explicação.
+        - **[Tópico 2]:** Breve explicação.
+        - **[Tópico 3]:** Breve explicação.
+
+        💡 **Recomendação Estratégica:**
+        Forneça uma única recomendação clara e acionável para o próximo passo.
+
         ---
+        Texto do Contrato para Análise:
         {contrato}
         ---
-
-        Agora, forneça sua análise proativa.
     """
-
+    
     try:
         prompt = PromptTemplate.from_template(template)
-
-        chain = prompt | llm_gemini_pro
-
+        
+        # Use a instância do LLM com as configurações de segurança
+        chain = prompt | llm_proativo_seguro
+        
+        print("--- DEBUG: Prestes a invocar a API do Gemini com o novo prompt... ---")
         response = chain.invoke({"contrato": texto_contrato})
-
+        print("--- DEBUG: A API do Gemini respondeu com sucesso! ---")
+        
         return response.content
 
     except Exception as e:
-        print(f"ERRO ao gerar insights proativos: {e}")
-        return "Não foi possível gerar os insights devido a um erro interno."
+        print(f"--- ERRO CAPTURADO EM gerar_insights_proativos: {str(e)} ---")
+        raise e
